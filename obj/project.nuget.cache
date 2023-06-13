@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "3L8bXR9a8LTdoW4Eibnzhy+S/otZo+s70rVFVfU5XVYUzXwBGxwGM9H/TxV1sLiYHO1cEHPcvTmwEG0L+ZhtZw==",
+  "success": true,
+  "projectFilePath": "D:\\CODE Files\\MMH\\CRYSTALSAPP\\CRYSTALSAPP.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\ADMIN\\.nuget\\packages\\bouncycastle.cryptography\\2.2.1\\bouncycastle.cryptography.2.2.1.nupkg.sha512"
+  ],
+  "logs": []
+}
