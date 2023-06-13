@@ -43,7 +43,7 @@ namespace CRYSTALSAPP
         const string DEFAULT_MESSAGE = "Hello Client! This is server, How are you?";
 
         const int DEFAULT_PORT = 8080;
-        const int BUFFER_SIZE = 4096;
+        const int BUFFER_SIZE = 8096;
         List<TcpClient> userClients = new List<TcpClient>();
 
         int NONCE_LENGTH = AesGcm.NonceByteSizes.MaxSize;
@@ -55,45 +55,6 @@ namespace CRYSTALSAPP
         AsymmetricCipherKeyPair keyPair;
 
         bool kyber_exchanged, dilithium_exchanged = false;
-
-        void exchangeKyber(SecureRandom rng, TcpClient userClient)
-        {
-            userClient.ReceiveBufferSize = BUFFER_SIZE;
-            byte[] buffer = new byte[BUFFER_SIZE];
-            int bytesReceived;
-
-            NetworkStream ns = userClient.GetStream();
-
-            KyberKeyGenerationParameters keyGenParameters = new KyberKeyGenerationParameters(rng, KyberParameters.kyber768);
-
-            KyberKeyPairGenerator keyPairGenerator = new KyberKeyPairGenerator();
-            keyPairGenerator.Init(keyGenParameters);
-
-            AsymmetricCipherKeyPair aliceKeyPair = keyPairGenerator.GenerateKeyPair();
-
-            KyberPublicKeyParameters alicePublic = (KyberPublicKeyParameters)aliceKeyPair.Public;
-            KyberPrivateKeyParameters alicePrivate = (KyberPrivateKeyParameters)aliceKeyPair.Private;
-
-            byte[] publicEncoded = alicePublic.GetEncoded();
-            byte[] privateEncoded = alicePrivate.GetEncoded();
-
-            devConsole.Print("Generated KYBER Key Pair!");
-            devConsole.Print("Public Key: " + PrettyPrint(publicEncoded));
-            devConsole.Print("Private Key: " + PrettyPrint(privateEncoded));
-
-            ns.Write(publicEncoded, 0, publicEncoded.Length);
-            devConsole.Print("Sent Public key to Client!");
-
-            devConsole.Print("Waiting for Client's encapsulated secret...");
-            bytesReceived = ns.Read(buffer, 0, buffer.Length);
-
-            devConsole.Print("Encapsulated secret received! Extracting session key...");
-            var aliceKemExtractor = new KyberKemExtractor(alicePrivate);
-            sessionKey = aliceKemExtractor.ExtractSecret(buffer[..bytesReceived]);
-            devConsole.Print("Session key: " + PrettyPrint(sessionKey));
-
-            devConsole.Print("Process complete!");
-        }
 
         void exchangeDilithium(SecureRandom rng, TcpClient userClient)
         {
@@ -128,6 +89,52 @@ namespace CRYSTALSAPP
             byte[] keyReceived = buffer[..bytesReceived];
             devConsole.Print("Server's Public key received: " + PrettyPrint(keyReceived));
             partnerKey = new DilithiumPublicKeyParameters(DilithiumParameters.Dilithium3, keyReceived);
+
+            devConsole.Print("Process complete!");
+        }
+
+        void exchangeKyber(SecureRandom rng, TcpClient userClient)
+        {
+            userClient.ReceiveBufferSize = BUFFER_SIZE;
+            byte[] buffer = new byte[BUFFER_SIZE];
+            int bytesReceived;
+
+            NetworkStream ns = userClient.GetStream();
+
+            KyberKeyGenerationParameters keyGenParameters = new KyberKeyGenerationParameters(rng, KyberParameters.kyber768);
+
+            KyberKeyPairGenerator keyPairGenerator = new KyberKeyPairGenerator();
+            keyPairGenerator.Init(keyGenParameters);
+
+            AsymmetricCipherKeyPair aliceKeyPair = keyPairGenerator.GenerateKeyPair();
+
+            KyberPublicKeyParameters alicePublic = (KyberPublicKeyParameters)aliceKeyPair.Public;
+            KyberPrivateKeyParameters alicePrivate = (KyberPrivateKeyParameters)aliceKeyPair.Private;
+
+            byte[] publicEncoded = alicePublic.GetEncoded();
+            byte[] privateEncoded = alicePrivate.GetEncoded();
+
+            devConsole.Print("Generated KYBER Key Pair!");
+            devConsole.Print("Public Key: " + PrettyPrint(publicEncoded));
+            devConsole.Print("Private Key: " + PrettyPrint(privateEncoded));
+
+            byte[] signature = generateSignature(publicEncoded);
+            devConsole.Print("Generated Signature: " + PrettyPrint(signature));
+
+            byte[] payload = new byte[publicEncoded.Length + signature.Length];
+            Buffer.BlockCopy(publicEncoded, 0, payload, 0, publicEncoded.Length);
+            Buffer.BlockCopy(signature, 0, payload, publicEncoded.Length, signature.Length);
+
+            ns.Write(payload, 0, payload.Length);
+            devConsole.Print("Sent Public key to Client!");
+
+            devConsole.Print("Waiting for Client's encapsulated secret...");
+            bytesReceived = ns.Read(buffer, 0, buffer.Length);
+
+            devConsole.Print("Encapsulated secret received! Extracting session key...");
+            KyberKemExtractor aliceKemExtractor = new KyberKemExtractor(alicePrivate);
+            sessionKey = aliceKemExtractor.ExtractSecret(buffer[..bytesReceived]);
+            devConsole.Print("Session key: " + PrettyPrint(sessionKey));
 
             devConsole.Print("Process complete!");
         }
@@ -207,6 +214,7 @@ namespace CRYSTALSAPP
                 t.Start();
             }
         }
+
         void sendMessage(NetworkStream ns)
         {
             byte[] message = Encoding.UTF8.GetBytes(DEFAULT_MESSAGE);

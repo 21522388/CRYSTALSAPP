@@ -42,7 +42,7 @@ namespace CRYSTALSAPP
         }
 
         const int DEFAULT_PORT = 8080;
-        const int BUFFER_SIZE = 4096;
+        const int BUFFER_SIZE = 8096;
         TcpClient client;
         NetworkStream ns;
 
@@ -55,33 +55,6 @@ namespace CRYSTALSAPP
         AsymmetricCipherKeyPair keyPair;
 
         bool kyber_exchanged, dilithium_exchanged = false;
-
-        void exchangeKyber(SecureRandom rng)
-        {
-            client.ReceiveBufferSize = BUFFER_SIZE;
-            byte[] buffer = new byte[BUFFER_SIZE];
-            int bytesReceived;
-
-            devConsole.Print("Waiting for Server's Public key...");
-            bytesReceived = ns.Read(buffer, 0, buffer.Length);
-
-            byte[] keyReceived = buffer[..bytesReceived];
-            devConsole.Print("Server's Public key received: " + PrettyPrint(keyReceived));
-
-            KyberPublicKeyParameters alicePublic = new KyberPublicKeyParameters(KyberParameters.kyber768, keyReceived);
-
-            devConsole.Print("Generating session key...");
-            KyberKemGenerator bobKyberKemGenerator = new KyberKemGenerator(rng);
-            ISecretWithEncapsulation encapsulatedSecret = bobKyberKemGenerator.GenerateEncapsulated(alicePublic);
-            sessionKey = encapsulatedSecret.GetSecret();
-            devConsole.Print("Session key: " + PrettyPrint(sessionKey));
-
-            byte[] cipherText = encapsulatedSecret.GetEncapsulation();
-            ns.Write(cipherText, 0, cipherText.Length);
-            devConsole.Print("Sent Encapsulated Secret key to Server!");
-
-            devConsole.Print("Process complete!");
-        }
 
         void exchangeDilithium(SecureRandom rng)
         {
@@ -114,6 +87,44 @@ namespace CRYSTALSAPP
 
             ns.Write(publicEncoded, 0, publicEncoded.Length);
             devConsole.Print("Sent Public key to Server!");
+
+            devConsole.Print("Process complete!");
+        }
+
+        void exchangeKyber(SecureRandom rng)
+        {
+            client.ReceiveBufferSize = BUFFER_SIZE;
+            byte[] buffer = new byte[BUFFER_SIZE];
+            int bytesReceived;
+
+            devConsole.Print("Waiting for Server's Public key...");
+            bytesReceived = ns.Read(buffer, 0, buffer.Length);
+
+            // Extract encrypted data and signature
+            byte[] payload = buffer[..bytesReceived];
+            byte[] keyReceived = new byte[payload.Length - SIGNATURE_LENGTH];
+            byte[] signature = new byte[SIGNATURE_LENGTH];
+
+            Buffer.BlockCopy(payload, 0, keyReceived, 0, keyReceived.Length);
+            Buffer.BlockCopy(payload, keyReceived.Length, signature, 0, signature.Length);
+            devConsole.Print("Server's Public key received: " + PrettyPrint(keyReceived));
+
+            if (verifyMessage(keyReceived, signature))
+                devConsole.Print("Key Verified!");
+            else
+                devConsole.Print("Key Failed to Verify!");
+
+            KyberPublicKeyParameters alicePublic = new KyberPublicKeyParameters(KyberParameters.kyber768, keyReceived);
+
+            devConsole.Print("Generating session key...");
+            KyberKemGenerator bobKyberKemGenerator = new KyberKemGenerator(rng);
+            ISecretWithEncapsulation encapsulatedSecret = bobKyberKemGenerator.GenerateEncapsulated(alicePublic);
+            sessionKey = encapsulatedSecret.GetSecret();
+            devConsole.Print("Session key: " + PrettyPrint(sessionKey));
+
+            byte[] cipherText = encapsulatedSecret.GetEncapsulation();
+            ns.Write(cipherText, 0, cipherText.Length);
+            devConsole.Print("Sent Encapsulated Secret key to Server!");
 
             devConsole.Print("Process complete!");
         }
