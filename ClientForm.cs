@@ -42,55 +42,14 @@ namespace CRYSTALSAPP
         }
 
         const int DEFAULT_PORT = 8080;
-        const int BUFFER_SIZE = 8096;
+        const int BUFFER_SIZE = 4096;
         TcpClient client;
         NetworkStream ns;
 
         int NONCE_LENGTH = AesGcm.NonceByteSizes.MaxSize;
         int TAG_LENGTH = AesGcm.TagByteSizes.MaxSize;
-        const int SIGNATURE_LENGTH = 3293; // Dilithium3
 
-        byte[] sessionKey;
-        DilithiumPublicKeyParameters partnerKey;
-        AsymmetricCipherKeyPair keyPair;
-
-        bool kyber_exchanged, dilithium_exchanged = false;
-
-        void exchangeDilithium(SecureRandom rng)
-        {
-            client.ReceiveBufferSize = BUFFER_SIZE;
-            byte[] buffer = new byte[BUFFER_SIZE];
-            int bytesReceived;
-
-            devConsole.Print("Waiting for Server's Public key...");
-            bytesReceived = ns.Read(buffer, 0, buffer.Length);
-
-            byte[] keyReceived = buffer[..bytesReceived];
-            devConsole.Print("Server's Public key received: " + PrettyPrint(keyReceived));
-            partnerKey = new DilithiumPublicKeyParameters(DilithiumParameters.Dilithium3, keyReceived);
-
-            DilithiumKeyGenerationParameters kgp = new DilithiumKeyGenerationParameters(rng, DilithiumParameters.Dilithium3);
-            DilithiumKeyPairGenerator dilithiumKeyPairGenerator = new DilithiumKeyPairGenerator();
-
-            dilithiumKeyPairGenerator.Init(kgp);
-            keyPair = dilithiumKeyPairGenerator.GenerateKeyPair();
-
-            DilithiumPublicKeyParameters myPublic = (DilithiumPublicKeyParameters)keyPair.Public;
-            DilithiumPrivateKeyParameters myPrivate = (DilithiumPrivateKeyParameters)keyPair.Private;
-
-            byte[] publicEncoded = myPublic.GetEncoded();
-            byte[] privateEncoded = myPrivate.GetEncoded();
-
-            devConsole.Print("Generated DILITHIUM Key Pair!");
-            devConsole.Print("Public Key: " + PrettyPrint(publicEncoded));
-            devConsole.Print("Private Key: " + PrettyPrint(privateEncoded));
-
-            ns.Write(publicEncoded, 0, publicEncoded.Length);
-            devConsole.Print("Sent Public key to Server!");
-
-            devConsole.Print("Process complete!");
-        }
-
+        byte[] sharedSecret;
         void exchangeKyber(SecureRandom rng)
         {
             client.ReceiveBufferSize = BUFFER_SIZE;
@@ -100,27 +59,16 @@ namespace CRYSTALSAPP
             devConsole.Print("Waiting for Server's Public key...");
             bytesReceived = ns.Read(buffer, 0, buffer.Length);
 
-            // Extract encrypted data and signature
-            byte[] payload = buffer[..bytesReceived];
-            byte[] keyReceived = new byte[payload.Length - SIGNATURE_LENGTH];
-            byte[] signature = new byte[SIGNATURE_LENGTH];
-
-            Buffer.BlockCopy(payload, 0, keyReceived, 0, keyReceived.Length);
-            Buffer.BlockCopy(payload, keyReceived.Length, signature, 0, signature.Length);
+            byte[] keyReceived = buffer[..bytesReceived];
+            // Add Key Received verification here!
             devConsole.Print("Server's Public key received: " + PrettyPrint(keyReceived));
-
-            if (verifyMessage(keyReceived, signature))
-                devConsole.Print("Key Verified!");
-            else
-                devConsole.Print("Key Failed to Verify!");
-
             KyberPublicKeyParameters alicePublic = new KyberPublicKeyParameters(KyberParameters.kyber768, keyReceived);
 
             devConsole.Print("Generating session key...");
             KyberKemGenerator bobKyberKemGenerator = new KyberKemGenerator(rng);
             ISecretWithEncapsulation encapsulatedSecret = bobKyberKemGenerator.GenerateEncapsulated(alicePublic);
-            sessionKey = encapsulatedSecret.GetSecret();
-            devConsole.Print("Session key: " + PrettyPrint(sessionKey));
+            sharedSecret = encapsulatedSecret.GetSecret();
+            devConsole.Print("Session key: " + PrettyPrint(sharedSecret));
 
             byte[] cipherText = encapsulatedSecret.GetEncapsulation();
             ns.Write(cipherText, 0, cipherText.Length);
@@ -131,7 +79,7 @@ namespace CRYSTALSAPP
 
         private byte[] encryptMessage(byte[] plaintext)
         {
-            AesGcm aes = new AesGcm(sessionKey);
+            AesGcm aes = new AesGcm(sharedSecret);
 
             byte[] nonce = new byte[NONCE_LENGTH];
             byte[] tag = new byte[TAG_LENGTH];
@@ -150,7 +98,7 @@ namespace CRYSTALSAPP
 
         private byte[] decryptMessage(byte[] encrypted)
         {
-            AesGcm aes = new AesGcm(sessionKey);
+            AesGcm aes = new AesGcm(sharedSecret);
 
             byte[] recv_nonce = new byte[NONCE_LENGTH];
             Buffer.BlockCopy(encrypted, 0, recv_nonce, 0, NONCE_LENGTH);
@@ -174,20 +122,6 @@ namespace CRYSTALSAPP
             }
         }
 
-        private byte[] generateSignature(byte[] message)
-        {
-            DilithiumSigner signer = new DilithiumSigner();
-            signer.Init(true, keyPair.Private);
-            return signer.GenerateSignature(message);
-        }
-
-        private bool verifyMessage(byte[] message, byte[] signature)
-        {
-            DilithiumSigner signer = new DilithiumSigner();
-            signer.Init(false, partnerKey);
-            return signer.VerifySignature(message, signature);
-        }
-
         private void initConnection(IPAddress ipAddress)
         {
             client = new TcpClient();
@@ -203,15 +137,7 @@ namespace CRYSTALSAPP
 
         void sendMessage(byte[] message)
         {
-            byte[] encrypted = encryptMessage(message);
-
-            byte[] signature = generateSignature(encrypted);
-            devConsole.Print("Generated Signature: " + PrettyPrint(signature));
-
-            byte[] payload = new byte[encrypted.Length + signature.Length];
-            Buffer.BlockCopy(encrypted, 0, payload, 0, encrypted.Length);
-            Buffer.BlockCopy(signature, 0, payload, encrypted.Length, signature.Length);
-
+            byte[] payload = encryptMessage(message);
             ns.Write(payload, 0, payload.Length);
         }
 
@@ -220,27 +146,8 @@ namespace CRYSTALSAPP
             devConsole.Print(">> Message received: " + PrettyPrint(payload));
             try
             {
-                // Extract encrypted data and signature
-                byte[] encrypted = new byte[payload.Length - SIGNATURE_LENGTH];
-                byte[] signature = new byte[SIGNATURE_LENGTH];
-
-                Buffer.BlockCopy(payload, 0, encrypted, 0, encrypted.Length);
-                Buffer.BlockCopy(payload, encrypted.Length, signature, 0, signature.Length);
-
-                // RandomNumberGenerator.Fill(signature); SIMULATE TAMPERED SIGNATURE
-                devConsole.Print("Received Signature: " + PrettyPrint(signature));
-
-                // Verify signature
-                bool result = verifyMessage(encrypted, signature);
-                if (!result)
-                {
-                    devConsole.Print("Failed! >> Invalid Signature");
-                    return;
-                }
-                devConsole.Print("Signature Verified!");
-
                 // Decrypt using AES 256 GCM
-                byte[] plaintext = decryptMessage(encrypted);
+                byte[] plaintext = decryptMessage(payload);
                 devConsole.Print(Encoding.UTF8.GetString(plaintext));
             }
             catch (Exception ex)
@@ -254,11 +161,7 @@ namespace CRYSTALSAPP
             devConsole.Print("=== CREATING SESSION ===");
 
             SecureRandom rng = new SecureRandom();
-            // Perform CRYSTALS-Dilithium
-            devConsole.Print(">> Exchanging CRYSTALS-Dilithium keys:");
-            exchangeDilithium(rng);
             // Perform CRYSTALS-Kyber
-            devConsole.Print(">> Creating session key with CRYSTALS-Kyber:");
             exchangeKyber(rng);
 
             devConsole.Print("=== SESSION CREATION COMPLETE! ===");
