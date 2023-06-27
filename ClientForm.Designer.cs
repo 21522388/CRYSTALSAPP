@@ -35,12 +35,16 @@
             label2 = new Label();
             NameBox = new TextBox();
             OrderView = new ListView();
-            Food = new ColumnHeader();
-            Amount = new ColumnHeader();
-            AddChickenButton = new Button();
-            AddFriesButton = new Button();
-            AddPepsiButton = new Button();
+            ID = new ColumnHeader();
+            ItemName = new ColumnHeader();
+            Price = new ColumnHeader();
+            Available = new ColumnHeader();
             ClearButton = new Button();
+            DeliveryAddressBox = new RichTextBox();
+            label3 = new Label();
+            label4 = new Label();
+            TotalLabel = new Label();
+            Amount = new ColumnHeader();
             SuspendLayout();
             // 
             // ConnectButton
@@ -74,11 +78,11 @@
             // 
             SendButton.Font = new Font("Segoe UI", 18F, FontStyle.Bold, GraphicsUnit.Point);
             SendButton.ForeColor = Color.FromArgb(0, 192, 0);
-            SendButton.Location = new Point(12, 303);
+            SendButton.Location = new Point(500, 403);
             SendButton.Name = "SendButton";
-            SendButton.Size = new Size(184, 46);
+            SendButton.Size = new Size(272, 46);
             SendButton.TabIndex = 4;
-            SendButton.Text = "SEND";
+            SendButton.Text = "PLACE ORDER";
             SendButton.UseVisualStyleBackColor = true;
             SendButton.Click += SendButton_Click;
             // 
@@ -86,7 +90,7 @@
             // 
             label2.AutoSize = true;
             label2.Font = new Font("Segoe UI", 14.25F, FontStyle.Regular, GraphicsUnit.Point);
-            label2.Location = new Point(12, 35);
+            label2.Location = new Point(391, 63);
             label2.Name = "label2";
             label2.Size = new Size(184, 25);
             label2.TabIndex = 5;
@@ -94,71 +98,45 @@
             // 
             // NameBox
             // 
-            NameBox.Location = new Point(202, 35);
+            NameBox.Location = new Point(391, 91);
             NameBox.Name = "NameBox";
-            NameBox.Size = new Size(252, 23);
+            NameBox.Size = new Size(381, 23);
             NameBox.TabIndex = 6;
             // 
             // OrderView
             // 
-            OrderView.Columns.AddRange(new ColumnHeader[] { Food, Amount });
+            OrderView.Columns.AddRange(new ColumnHeader[] { ID, ItemName, Price, Available, Amount });
             OrderView.Location = new Point(12, 63);
             OrderView.Name = "OrderView";
-            OrderView.Size = new Size(373, 241);
+            OrderView.Size = new Size(373, 334);
             OrderView.TabIndex = 7;
             OrderView.UseCompatibleStateImageBehavior = false;
             OrderView.View = View.Details;
             // 
-            // Food
+            // ID
             // 
-            Food.Text = "Food";
-            Food.Width = 260;
+            ID.Text = "ID";
+            ID.Width = 40;
             // 
-            // Amount
+            // ItemName
             // 
-            Amount.Text = "Amount";
+            ItemName.Text = "ItemName";
+            ItemName.Width = 120;
             // 
-            // AddChickenButton
+            // Price
             // 
-            AddChickenButton.Font = new Font("Segoe UI Semibold", 14.25F, FontStyle.Bold, GraphicsUnit.Point);
-            AddChickenButton.Location = new Point(391, 63);
-            AddChickenButton.Name = "AddChickenButton";
-            AddChickenButton.Size = new Size(181, 48);
-            AddChickenButton.TabIndex = 8;
-            AddChickenButton.Text = "+1 Chicken";
-            AddChickenButton.TextAlign = ContentAlignment.MiddleLeft;
-            AddChickenButton.UseVisualStyleBackColor = true;
-            AddChickenButton.Click += AddChickenButton_Click;
+            Price.Text = "Price";
+            Price.Width = 80;
             // 
-            // AddFriesButton
+            // Available
             // 
-            AddFriesButton.Font = new Font("Segoe UI Semibold", 14.25F, FontStyle.Bold, GraphicsUnit.Point);
-            AddFriesButton.Location = new Point(391, 117);
-            AddFriesButton.Name = "AddFriesButton";
-            AddFriesButton.Size = new Size(181, 48);
-            AddFriesButton.TabIndex = 9;
-            AddFriesButton.Text = "+1 French Fries";
-            AddFriesButton.TextAlign = ContentAlignment.MiddleLeft;
-            AddFriesButton.UseVisualStyleBackColor = true;
-            AddFriesButton.Click += AddFriesButton_Click;
-            // 
-            // AddPepsiButton
-            // 
-            AddPepsiButton.Font = new Font("Segoe UI Semibold", 14.25F, FontStyle.Bold, GraphicsUnit.Point);
-            AddPepsiButton.Location = new Point(391, 171);
-            AddPepsiButton.Name = "AddPepsiButton";
-            AddPepsiButton.Size = new Size(181, 48);
-            AddPepsiButton.TabIndex = 10;
-            AddPepsiButton.Text = "+1 Pepsi";
-            AddPepsiButton.TextAlign = ContentAlignment.MiddleLeft;
-            AddPepsiButton.UseVisualStyleBackColor = true;
-            AddPepsiButton.Click += AddPepsiButton_Click;
+            Available.Text = "Available";
             // 
             // ClearButton
             // 
             ClearButton.Font = new Font("Segoe UI", 18F, FontStyle.Bold, GraphicsUnit.Point);
             ClearButton.ForeColor = Color.Red;
-            ClearButton.Location = new Point(202, 303);
+            ClearButton.Location = new Point(202, 403);
             ClearButton.Name = "ClearButton";
             ClearButton.Size = new Size(183, 46);
             ClearButton.TabIndex = 11;
@@ -166,15 +144,58 @@
             ClearButton.UseVisualStyleBackColor = true;
             ClearButton.Click += ClearButton_Click;
             // 
+            // DeliveryAddressBox
+            // 
+            DeliveryAddressBox.Location = new Point(391, 145);
+            DeliveryAddressBox.Name = "DeliveryAddressBox";
+            DeliveryAddressBox.Size = new Size(381, 87);
+            DeliveryAddressBox.TabIndex = 12;
+            DeliveryAddressBox.Text = "";
+            // 
+            // label3
+            // 
+            label3.AutoSize = true;
+            label3.Font = new Font("Segoe UI", 14.25F, FontStyle.Regular, GraphicsUnit.Point);
+            label3.Location = new Point(391, 117);
+            label3.Name = "label3";
+            label3.Size = new Size(181, 25);
+            label3.TabIndex = 13;
+            label3.Text = "DELIVERY ADDRESS:";
+            // 
+            // label4
+            // 
+            label4.AutoSize = true;
+            label4.Font = new Font("Segoe UI", 14.25F, FontStyle.Regular, GraphicsUnit.Point);
+            label4.Location = new Point(391, 332);
+            label4.Name = "label4";
+            label4.Size = new Size(68, 25);
+            label4.TabIndex = 14;
+            label4.Text = "TOTAL:";
+            // 
+            // TotalLabel
+            // 
+            TotalLabel.AutoSize = true;
+            TotalLabel.Font = new Font("Segoe UI", 21.75F, FontStyle.Bold, GraphicsUnit.Point);
+            TotalLabel.Location = new Point(391, 357);
+            TotalLabel.Name = "TotalLabel";
+            TotalLabel.Size = new Size(105, 40);
+            TotalLabel.TabIndex = 15;
+            TotalLabel.Text = "0 VND";
+            // 
+            // Amount
+            // 
+            Amount.Text = "Amount";
+            // 
             // ClientForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(584, 361);
+            ClientSize = new Size(784, 461);
+            Controls.Add(TotalLabel);
+            Controls.Add(label4);
+            Controls.Add(label3);
+            Controls.Add(DeliveryAddressBox);
             Controls.Add(ClearButton);
-            Controls.Add(AddPepsiButton);
-            Controls.Add(AddFriesButton);
-            Controls.Add(AddChickenButton);
             Controls.Add(OrderView);
             Controls.Add(NameBox);
             Controls.Add(label2);
@@ -197,11 +218,15 @@
         private Label label2;
         private TextBox NameBox;
         private ListView OrderView;
-        private ColumnHeader Food;
-        private Button AddChickenButton;
-        private Button AddFriesButton;
-        private Button AddPepsiButton;
-        private ColumnHeader Amount;
         private Button ClearButton;
+        private RichTextBox DeliveryAddressBox;
+        private Label label3;
+        private ColumnHeader ID;
+        private ColumnHeader ItemName;
+        private ColumnHeader Price;
+        private ColumnHeader Available;
+        private Label label4;
+        private Label TotalLabel;
+        private ColumnHeader Amount;
     }
 }

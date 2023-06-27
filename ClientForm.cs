@@ -1,4 +1,3 @@
-using Org.BouncyCastle.Pqc.Crypto.Crystals.Dilithium;
 using Org.BouncyCastle.Pqc.Crypto.Crystals.Kyber;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.Utilities.Encoders;
@@ -41,6 +40,7 @@ namespace CRYSTALSAPP
             return base64;
         }
 
+        const string CURRENCY_SUFFIX = "VND";
         const int DEFAULT_PORT = 8080;
         const int BUFFER_SIZE = 4096;
         TcpClient client;
@@ -165,6 +165,11 @@ namespace CRYSTALSAPP
             exchangeKyber(rng);
 
             devConsole.Print("=== SESSION CREATION COMPLETE! ===");
+
+            // Wait for Menu
+            List<MenuItem> menuItems = waitForMenu();
+            // Create Menu on List
+            createMenu(menuItems);
             SendButton.Enabled = true;
 
             client.ReceiveBufferSize = BUFFER_SIZE;
@@ -214,19 +219,119 @@ namespace CRYSTALSAPP
 
         private byte[] createMessage()
         {
-            List<FoodItem> foodItems = new List<FoodItem>();
+            List<OrderItem> orderItems = new List<OrderItem>();
             foreach (ListViewItem item in OrderView.Items)
             {
-                foodItems.Add(new FoodItem
+                if (Int32.Parse(item.SubItems[2].Text) <= 0) continue;
+                orderItems.Add(new OrderItem
                 {
-                    Name = item.SubItems[0].Text,
-                    Amount = item.SubItems[1].Text,
+                    ID = Int32.Parse(item.SubItems[0].Text),
+                    Amount = Int32.Parse(item.SubItems[2].Text),
                 });
             }
 
-            string jsonString = JsonSerializer.Serialize(foodItems);
+            OrderRequest orderRequest = new OrderRequest();
+            orderRequest.CustomerName = NameBox.Text;
+            orderRequest.DeliveryAddress = DeliveryAddressBox.Text;
+            orderRequest.OrderItems = orderItems;
 
-            return Encoding.UTF8.GetBytes(NameBox.Text + ';' + jsonString);
+            return JsonSerializer.SerializeToUtf8Bytes(orderRequest);
+        }
+
+        int TOTAL_PAYMENT = 0;
+
+        private void updateTotal()
+        {
+            TotalLabel.Text = TOTAL_PAYMENT.ToString() + ' ' + CURRENCY_SUFFIX;
+        }
+
+        private List<MenuItem> waitForMenu()
+        {
+            client.ReceiveBufferSize = BUFFER_SIZE;
+            byte[] buffer = new byte[BUFFER_SIZE];
+            int bytesReceived;
+
+            devConsole.Print("Waiting for Server to send Menu...");
+            bytesReceived = ns.Read(buffer, 0, buffer.Length);
+
+            devConsole.Print("Menu Received: " + PrettyPrint(buffer[..bytesReceived]));
+            
+            byte[] plaintext = decryptMessage(buffer[..bytesReceived]);
+            devConsole.Print(Encoding.UTF8.GetString(plaintext));
+            return JsonSerializer.Deserialize<List<MenuItem>>(plaintext);
+        }
+
+        private void createMenu(List<MenuItem> menuItems)
+        {
+            foreach (var menuItem in menuItems)
+            {
+                var item = new ListViewItem(menuItem.ID.ToString());
+                item.SubItems.Add(menuItem.ItemName);
+                item.SubItems.Add(menuItem.Price.ToString());
+                item.SubItems.Add(menuItem.Available.ToString());
+                item.SubItems.Add(menuItem.Amount.ToString());
+
+                var panel = new Panel();
+                panel.Size = new Size(50, 20);
+
+                var plusButton = new Button();
+                plusButton.Text = "+";
+                plusButton.Location = new Point(0, 0);
+                plusButton.Size = new Size(20, 20);
+                plusButton.Click += (sender, e) =>
+                {
+                    menuItem.Amount++;
+                    item.SubItems[4].Text = menuItem.Amount.ToString();
+                    TOTAL_PAYMENT += menuItem.Price;
+                    updateTotal();
+                };
+                panel.Controls.Add(plusButton);
+                plusButton.Enabled = menuItem.Available;
+
+                var minusButton = new Button();
+                minusButton.Text = "-";
+                minusButton.Location = new Point(30, 0);
+                minusButton.Size = new Size(20, 20);
+                minusButton.Click += (sender, e) =>
+                {
+                    if (menuItem.Amount > 0)
+                    {
+                        menuItem.Amount--;
+                        item.SubItems[4].Text = menuItem.Amount.ToString();
+                        TOTAL_PAYMENT -= menuItem.Price;
+                        updateTotal();
+                    }
+                };
+                panel.Controls.Add(minusButton);
+                minusButton.Enabled = menuItem.Available;
+
+                item.Tag = panel;
+
+                OrderView.Items.Add(item);
+            }
+
+            OrderView.ItemSelectionChanged += (sender, e) =>
+            {
+                if (e.IsSelected)
+                {
+                    var panel = (Panel)e.Item.Tag;
+                    panel.Visible = true;
+                    panel.Location = new Point(e.Item.Bounds.Right - panel.Width + 5, e.Item.Bounds.Top + (e.Item.Bounds.Height - panel.Height) / 2);
+                    OrderView.Controls.Add(panel);
+                    panel.BringToFront();
+                    OrderView.Focus();
+                }
+                else
+                {
+                    foreach (ListViewItem item in OrderView.Items)
+                    {
+                        var panel = (Panel)item.Tag;
+                        panel.Visible = false;
+                        OrderView.Controls.Remove(panel);
+                    }
+                }
+            };
+            Controls.Add(OrderView);
         }
 
         bool debounce = false;
@@ -239,34 +344,6 @@ namespace CRYSTALSAPP
             sendMessage(message);
 
             debounce = false;
-        }
-
-        private void addItem(string itemName)
-        {
-            foreach (ListViewItem item in OrderView.Items)
-            {
-                if (item.SubItems[0].Text == itemName)
-                {
-                    item.SubItems[1].Text = (int.Parse(item.SubItems[1].Text) + 1).ToString();
-                    return;
-                }
-            }
-            OrderView.Items.Add(new ListViewItem(new[] { itemName, "1" }));
-        }
-
-        private void AddChickenButton_Click(object sender, EventArgs e)
-        {
-            addItem("Chicken");
-        }
-
-        private void AddFriesButton_Click(object sender, EventArgs e)
-        {
-            addItem("French Fries");
-        }
-
-        private void AddPepsiButton_Click(object sender, EventArgs e)
-        {
-            addItem("Pepsi");
         }
 
         private void ClearButton_Click(object sender, EventArgs e)

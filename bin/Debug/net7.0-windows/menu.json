@@ -1,0 +1,26 @@
+[
+	{
+		"ID": 1,
+		"ItemName": "Chicken Nugget",
+		"Price": 25000,
+		"Available": true
+	},
+	{
+		"ID": 2,
+		"ItemName": "Burger",
+		"Price": 40000,
+		"Available": true
+	},
+	{
+		"ID": 3,
+		"ItemName": "French Fries",
+		"Price": 30000,
+		"Available": false
+	},
+	{
+		"ID": 4,
+		"ItemName": "Pepsi",
+		"Price": 20000,
+		"Available": true
+	}
+]

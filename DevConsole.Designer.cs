@@ -37,7 +37,7 @@
             PrintView.BackColor = Color.FromArgb(16, 17, 28);
             PrintView.BorderStyle = BorderStyle.None;
             PrintView.Columns.AddRange(new ColumnHeader[] { ConsolePrint });
-            PrintView.Font = new Font("Segoe UI", 14.25F, FontStyle.Regular, GraphicsUnit.Point);
+            PrintView.Font = new Font("Segoe UI", 12F, FontStyle.Regular, GraphicsUnit.Point);
             PrintView.ForeColor = Color.White;
             PrintView.Location = new Point(12, 12);
             PrintView.Name = "PrintView";

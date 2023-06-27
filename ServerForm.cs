@@ -1,5 +1,4 @@
-﻿using Org.BouncyCastle.Pqc.Crypto.Crystals.Dilithium;
-using Org.BouncyCastle.Pqc.Crypto.Crystals.Kyber;
+﻿using Org.BouncyCastle.Pqc.Crypto.Crystals.Kyber;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.Utilities.Encoders;
 using System;
@@ -15,6 +14,8 @@ using Org.BouncyCastle.Utilities.Net;
 using IPAddress = System.Net.IPAddress;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Generators;
+using System.Text.Json;
+using Org.BouncyCastle.Utilities;
 
 namespace CRYSTALSAPP
 {
@@ -184,6 +185,9 @@ namespace CRYSTALSAPP
 
             devConsole.Print("=== SESSION CREATION COMPLETE! ===");
 
+            // Send Menu to Client
+            sendMenu(userClient);
+
             userClient.ReceiveBufferSize = BUFFER_SIZE;
             byte[] buffer = new byte[BUFFER_SIZE];
             int bytesReceived;
@@ -206,6 +210,19 @@ namespace CRYSTALSAPP
             devConsole.Print(userClient.Client.RemoteEndPoint.ToString() + CLIENT_LEAVE_MSG);
             userClient.Client.Shutdown(SocketShutdown.Both);
             userClient.Close();
+        }
+
+        private void sendMenu(TcpClient userClient)
+        {
+            byte[] payload = encryptMessage(File.ReadAllBytes("menu.json"));
+
+            userClient.ReceiveBufferSize = BUFFER_SIZE;
+            int bytesReceived;
+
+            NetworkStream ns = userClient.GetStream();
+
+            ns.Write(payload, 0, payload.Length);
+            devConsole.Print("Menu sent to Client!");
         }
 
         private void ListenButton_Click(object sender, EventArgs e)
